@@ -173,13 +173,17 @@ class ARS:
 
         return eligibilities
 
-    def select_witnesses(self, eligibilities, num_witnesses, epoch, collateral):
+    def select_witnesses(self, eligibilities, approximate_eligibility, num_witnesses, epoch, collateral):
         # Select some witnesses based on eligibility
         for commit_round in range(self.commit_rounds):
             # Find eligible witnesses
             eligibile_identities, insufficient_collateral = [], []
             for identity, eligibility in eligibilities.items():
-                if min([random.random() for nw in range(num_witnesses * (2 ** commit_round))]) < eligibility:
+                if approximate_eligibility:
+                    is_eligible = random.random() < eligibility * num_witnesses * (2 ** commit_round)
+                else:
+                    is_eligible = min([random.random() for nw in range(num_witnesses * (2 ** commit_round))]) < eligibility
+                if is_eligible:
                     if self.identities[identity].can_witness(epoch, collateral):
                         eligibile_identities.append(identity)
                     else:

@@ -36,7 +36,7 @@ def read_data_requests_file(data_request_file):
 def generate_block(avg_data_requests, std_data_requests):
     return max(0, round(random.gauss(avg_data_requests, std_data_requests)))
 
-def simulate_block(logger, mode, ars, epoch, data_requests, leftover_reputation):
+def simulate_block(logger, mode, ars, epoch, data_requests, approximate_eligibility, leftover_reputation):
     # All reputation gained
     all_witnesses = []
     witnessing_acts = 0
@@ -44,7 +44,7 @@ def simulate_block(logger, mode, ars, epoch, data_requests, leftover_reputation)
     for data_request, (witnesses, collateral) in enumerate(data_requests):
         logger.info(f"{mode}, epoch {epoch}, data request {data_request + 1}")
 
-        success, data_request_witnesses, insufficient_collateral_witnesses = ars.select_witnesses(eligibilities, witnesses, epoch, collateral)
+        success, data_request_witnesses, insufficient_collateral_witnesses = ars.select_witnesses(eligibilities, approximate_eligibility, witnesses, epoch, collateral)
         if success:
             all_witnesses.extend(list(data_request_witnesses))
             witnessing_acts += len(data_request_witnesses)
@@ -89,6 +89,7 @@ def main():
     parser.add_option("--offset-epochs", type="int", dest="offset_epochs", default=0, help="Epoch offset for when to start the simulation")
     parser.add_option("--warmup-epochs", type="int", dest="warmup_epochs", default=0, help="Number of epochs for which to warmup the ARS")
     parser.add_option("--simulation-epochs", type="int", dest="detailed_epochs", default=1000, help="Number of epochs for which the ARS simulation runs")
+    parser.add_option("--approximate-eligibility", action="store_true", dest="approximate_eligibility", help="Speed up simulation by approximating data request solving eligibility")
 
     # Options to create a simulation based on the actual network
     parser.add_option("--ars-file", type="string", dest="ars_file", help="Read and build ARS based on a file")
@@ -140,6 +141,7 @@ def main():
                 ars,
                 epoch,
                 data_requests,
+                options.approximate_eligibility,
                 leftover_reputation,
             )
         else:
@@ -152,6 +154,7 @@ def main():
                     ars,
                     epoch,
                     data_requests_per_epoch[epoch],
+                    options.approximate_eligibility,
                     leftover_reputation,
                 )
             else:
@@ -186,6 +189,7 @@ def main():
                 ars,
                 epoch,
                 data_requests,
+                options.approximate_eligibility,
                 leftover_reputation,
             )
         else:
@@ -198,6 +202,7 @@ def main():
                     ars,
                     epoch,
                     data_requests_per_epoch[epoch],
+                    options.approximate_eligibility,
                     leftover_reputation,
                 )
             else:
