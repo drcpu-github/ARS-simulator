@@ -216,8 +216,8 @@ def main():
         ars.print_ARS()
 
     if options.detailed_epochs > 0:
-        print(f"Data requests simulated in warmup: {total_warmup_data_requests}, {total_warmup_data_requests / (options.warmup_epochs or 1)} / epoch")
-        print(f"Data requests simulated in detailed: {total_detailed_data_requests}, {total_detailed_data_requests / (options.detailed_epochs or 1)} / epoch")
+        print(f"Data requests simulated in warmup: {total_warmup_data_requests}, {total_warmup_data_requests / (options.warmup_epochs or 1):.2f} / epoch")
+        print(f"Data requests simulated in detailed: {total_detailed_data_requests}, {total_detailed_data_requests / (options.detailed_epochs or 1):.2f} / epoch")
 
     if options.detailed_epochs > 0:
         ars.collect_stats()
