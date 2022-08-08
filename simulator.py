@@ -114,8 +114,8 @@ def main():
             options.ars_file,
             options.balance,
         )
-        if options.warmup_epochs < 1000:
-            print("You should warmup the simulation for at least 1000 epochs to make sure the collateral and reputation expiry lists contain reasonable values.")
+        if options.warmup_epochs < options.collateral_locked:
+            print(f"You should warmup the simulation for at least {options.collateral_locked} epochs to make sure the collateral and reputation expiry lists contain reasonable values.")
     else:
         ars = ARS(options.collateral_locked)
         ars.initialize_zero_reputation_ARS(
