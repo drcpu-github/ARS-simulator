@@ -95,6 +95,9 @@ def main():
     parser.add_option("--ars-file", type="string", dest="ars_file", help="Read and build ARS based on a file")
     parser.add_option("--data-requests-file", type="string", dest="data_request_file", help="Read and simulate data requests from a file")
 
+    # Simulator options
+    parser.add_option("--print-ars", action="store_true", dest="print_ars", help="At the end of the simulation, print all identities in the ARS")
+
     options, args = parser.parse_args()
 
     if options.create_random_ars:
@@ -165,7 +168,8 @@ def main():
         for identity in ars.identities.values():
             assert identity.total_reputation == sum(reputation[1] for reputation in identity.reputation_gains)
 
-        ars.print_ARS()
+        if options.print_ars:
+            ars.print_ARS()
 
     if options.detailed_epochs > 0:
         ars.clear_stats()
@@ -213,7 +217,8 @@ def main():
         for identity in ars.identities.values():
             assert identity.total_reputation == sum(reputation[1] for reputation in identity.reputation_gains)
 
-        ars.print_ARS()
+        if options.print_ars:
+            ars.print_ARS()
 
     if options.detailed_epochs > 0:
         print(f"Data requests simulated in warmup: {total_warmup_data_requests}, {total_warmup_data_requests / (options.warmup_epochs or 1):.2f} / epoch")
