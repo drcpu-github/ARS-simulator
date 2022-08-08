@@ -96,12 +96,16 @@ def main():
     parser.add_option("--data-requests-file", type="string", dest="data_request_file", help="Read and simulate data requests from a file")
 
     # Simulator options
+    parser.add_option("--log-stdout", type="string", dest="log_stdout", default="info", help="Set logging level to stdout")
+    parser.add_option("--log-file", type="string", dest="log_file", default="debug", help="Set logging level to file")
     parser.add_option("--print-ars", action="store_true", dest="print_ars", help="At the end of the simulation, print all identities in the ARS")
 
     options, args = parser.parse_args()
 
+    logger = create_logger("simulator", options.log_stdout, options.log_file)
+
     if options.create_random_ars:
-        ars = ARS(options.collateral_locked)
+        ars = ARS(options.log_stdout, options.log_file, options.collateral_locked)
         ars.initialize_random_ARS(
             options.identities,
             options.max_reputation,
@@ -109,7 +113,7 @@ def main():
             options.balance,
         )
     elif options.ars_file:
-        ars = ARS(options.collateral_locked)
+        ars = ARS(options.log_stdout, options.log_file, options.collateral_locked)
         ars.initialize_ARS_from_file(
             options.ars_file,
             options.balance,
@@ -117,7 +121,7 @@ def main():
         if options.warmup_epochs < options.collateral_locked:
             print(f"You should warmup the simulation for at least {options.collateral_locked} epochs to make sure the collateral and reputation expiry lists contain reasonable values.")
     else:
-        ars = ARS(options.collateral_locked)
+        ars = ARS(options.log_stdout, options.log_file, options.collateral_locked)
         ars.initialize_zero_reputation_ARS(
             options.identities,
             options.balance,
@@ -126,8 +130,6 @@ def main():
     data_requests_per_epoch = {}
     if options.data_request_file:
         data_requests_per_epoch = read_data_requests_file(options.data_request_file)
-
-    logger = create_logger(__name__)
 
     # Run a warmup phase in the simulation
     total_warmup_data_requests, leftover_reputation = 0, 0

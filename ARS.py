@@ -6,8 +6,9 @@ from identity import Identity
 from logger import create_logger
 
 class ARS:
-    def __init__(self, collateral_locked):
-        self.logger = create_logger(__name__)
+    def __init__(self, log_stdout, log_file, collateral_locked):
+        self.logger = create_logger("ARS", log_stdout, log_file)
+        self.identity_logger = create_logger("identity", log_stdout, log_file)
 
         self.current_reputation = 0
 
@@ -25,6 +26,7 @@ class ARS:
         self.number_of_identities = identities
         for reputation in range(self.number_of_identities):
             identity = Identity(
+                logger=self.identity_logger,
                 available_collateral=[(0, balance)],
             )
             self.identities[identity.name] = identity
@@ -43,6 +45,7 @@ class ARS:
             # Each identity gained reputation from witnessing acts at random times (filtering out zero values)
             random_reputation_gain = self.generate_random_list(int(reputation / 10) + 1, reputation, True)
             identity = Identity(
+                logger=self.identity_logger,
                 name=name,
                 total_reputation=reputation,
                 reputation_gains=sorted([
@@ -73,6 +76,7 @@ class ARS:
             random_utxos = self.generate_random_list(int(reputation / 16) + 1, balance, True)
             # Each identity gained a random amount of reputation
             identity = Identity(
+                logger=self.identity_logger,
                 total_reputation=reputation,
                 reputation_gains=sorted([
                     (random.randint(0, self.reputation_expire), random_reputation_gain[i]) for i in range(len(random_reputation_gain))

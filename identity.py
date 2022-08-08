@@ -28,7 +28,7 @@ class Identity:
     eligible_no_collateral: int = 0
 
     # Logger
-    logger = create_logger(__name__)
+    logger: str = None
 
     def can_witness(self, epoch, required_collateral):
         collaterizable_balance = sum([collateral[1] for collateral in self.available_collateral if collateral[0] <= epoch])
