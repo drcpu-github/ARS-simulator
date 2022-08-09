@@ -2,6 +2,7 @@ import logging
 import operator
 import random
 
+from file_manager import open_file
 from identity import Identity
 from logger import create_logger
 
@@ -34,7 +35,7 @@ class ARS:
         self.current_witnessing_acts = 0
 
     def initialize_ARS_from_file(self, ars_file, balance):
-        f = open(ars_file, "r")
+        f = open_file(ars_file)
         identity_lines = [(line.split(",")[0], int(line.split(",")[1])) for line in f]
         f.close()
 

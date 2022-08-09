@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import bz2
 import logging
 import optparse
 import random
@@ -7,12 +8,14 @@ import sys
 import time
 
 from ARS import ARS
+from file_manager import open_file
 from logger import create_logger
 
 def read_data_requests_file(data_request_file):
     data_requests = {}
 
-    f = open(data_request_file, "r")
+    f = open_file(data_request_file)
+
     first_line = True
     for line in f:
         # Read and transform CSV data
