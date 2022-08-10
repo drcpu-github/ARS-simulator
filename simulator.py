@@ -2,6 +2,7 @@
 
 import bz2
 import logging
+import numpy
 import optparse
 import random
 import sys
@@ -9,12 +10,49 @@ import time
 
 from ARS import ARS
 from file_manager import open_file
+from file_manager import open_stats_file
 from logger import create_logger
 
-def read_data_requests_file(data_request_file):
+def dump_options(options, f_stats):
+    f_stats.write(f"collateral-locked: {options.collateral_locked}\n")
+    f_stats.write(f"balance: {options.balance}\n")
+
+    if not options.ars_file:
+        f_stats.write(f"identities: {options.identities}\n")
+    else:
+        f_stats.write(f"ars-file: {options.ars_file}\n")
+
+    if options.create_random_ars:
+        f_stats.write(f"create-random-ars: true\n")
+        f_stats.write(f"max-reputation: {options.max_reputation}\n")
+        f_stats.write(f"zero-reputation-ratio: {options.zero_reputation_ratio}%\n")
+
+    if not options.data_requests_file:
+        f_stats.write(f"--avg-data-requests: {avg_data_requests}\n")
+        f_stats.write(f"--std-data-requests: {options.std_data_requests}\n")
+        f_stats.write(f"--witnesses: {options.witnesses}\n")
+        f_stats.write(f"--collateral: {options.collateral}\n")
+    else:
+        f_stats.write(f"data-requests-file: {options.data_requests_file}\n")
+
+    f_stats.write(f"offset-epochs: {options.offset_epochs}\n")
+    f_stats.write(f"warmup-epochs: {options.warmup_epochs}\n")
+    f_stats.write(f"simulation-epochs: {options.detailed_epochs}\n")
+
+    f_stats.write(f"approximate-eligibility: {'true' if options.approximate_eligibility else 'false'}\n")
+
+    f_stats.write(f"log-stdout: {options.log_stdout}\n")
+    f_stats.write(f"log-file: {options.log_file}\n")
+
+    f_stats.write(f"print-ars: {'true' if options.print_ars else 'false'}\n")
+
+    f_stats.write("\n===================================================================\n\n")
+    f_stats.flush()
+
+def read_data_requests_file(data_requests_file):
     data_requests = {}
 
-    f = open_file(data_request_file)
+    f = open_file(data_requests_file)
 
     first_line = True
     for line in f:
@@ -78,7 +116,7 @@ def main():
     parser.add_option("--balance", type="int", dest="balance", default=100, help="Balance of each ARS identity in WIT")
 
     # Options to generate a random ARS
-    parser.add_option("--create-random-ars", action="store_true", dest="create_random_ars", help="Create random ARS using below distribution parameters")
+    parser.add_option("--create-random-ars", action="store_true", dest="create_random_ars", default=False, help="Create random ARS using below distribution parameters")
     parser.add_option("--max-reputation", type="int", dest="max_reputation", default=10000, help="Maximum reputation the top identity in the ARS can have")
     parser.add_option("--zero-reputation-ratio", type="int", dest="zero_reputation_ratio", default=50, help="Percentage of ARS members that have zero reputation")
 
@@ -88,22 +126,26 @@ def main():
     parser.add_option("--witnesses", type="int", dest="witnesses", default=10, help="Number of witnesses in a data request")
     parser.add_option("--collateral", type="int", dest="collateral", default=5, help="Collateral required by data request")
 
+    # Options to create a simulation based on the actual network
+    parser.add_option("--ars-file", type="string", dest="ars_file", help="Read and build ARS based on a file")
+    parser.add_option("--data-requests-file", type="string", dest="data_requests_file", help="Read and simulate data requests from a file")
+
     # Simulation parameters
     parser.add_option("--offset-epochs", type="int", dest="offset_epochs", default=0, help="Epoch offset for when to start the simulation")
     parser.add_option("--warmup-epochs", type="int", dest="warmup_epochs", default=0, help="Number of epochs for which to warmup the ARS")
     parser.add_option("--simulation-epochs", type="int", dest="detailed_epochs", default=1000, help="Number of epochs for which the ARS simulation runs")
-    parser.add_option("--approximate-eligibility", action="store_true", dest="approximate_eligibility", help="Speed up simulation by approximating data request solving eligibility")
-
-    # Options to create a simulation based on the actual network
-    parser.add_option("--ars-file", type="string", dest="ars_file", help="Read and build ARS based on a file")
-    parser.add_option("--data-requests-file", type="string", dest="data_request_file", help="Read and simulate data requests from a file")
+    parser.add_option("--approximate-eligibility", action="store_true", dest="approximate_eligibility", default=False, help="Speed up simulation by approximating data request solving eligibility")
 
     # Simulator options
     parser.add_option("--log-stdout", type="string", dest="log_stdout", default="info", help="Set logging level to stdout")
     parser.add_option("--log-file", type="string", dest="log_file", default="debug", help="Set logging level to file")
-    parser.add_option("--print-ars", action="store_true", dest="print_ars", help="At the end of the simulation, print all identities in the ARS")
+    parser.add_option("--print-ars", action="store_true", dest="print_ars", default=False, help="At the end of the simulation, print all identities in the ARS")
 
     options, args = parser.parse_args()
+
+    f_stats = open_stats_file()
+
+    dump_options(options, f_stats)
 
     logger = create_logger("simulator", options.log_stdout, options.log_file)
 
@@ -131,16 +173,21 @@ def main():
         )
 
     data_requests_per_epoch = {}
-    if options.data_request_file:
-        data_requests_per_epoch = read_data_requests_file(options.data_request_file)
+    if options.data_requests_file:
+        data_requests_per_epoch = read_data_requests_file(options.data_requests_file)
 
     # Run a warmup phase in the simulation
+    warmup_data_request_hist = {}
     total_warmup_data_requests, leftover_reputation = 0, 0
     for epoch in range(options.offset_epochs, options.offset_epochs + options.warmup_epochs):
         if data_requests_per_epoch == {}:
             num_data_requests = generate_block(avg_data_requests, std_data_requests)
             data_requests = [(options.witnesses, options.collateral) * num_data_requests]
 
+            if num_data_requests not in warmup_data_request_hist:
+                warmup_data_request_hist[num_data_requests] = 1
+            else:
+                warmup_data_request_hist[num_data_requests] += 1
             total_warmup_data_requests += num_data_requests
 
             leftover_reputation = simulate_block(
@@ -154,6 +201,10 @@ def main():
             )
         else:
             if epoch in data_requests_per_epoch:
+                if len(data_requests_per_epoch[epoch]) not in warmup_data_request_hist:
+                    warmup_data_request_hist[len(data_requests_per_epoch[epoch])] = 1
+                else:
+                    warmup_data_request_hist[len(data_requests_per_epoch[epoch])] += 1
                 total_warmup_data_requests += len(data_requests_per_epoch[epoch])
 
                 leftover_reputation = simulate_block(
@@ -166,6 +217,10 @@ def main():
                     leftover_reputation,
                 )
             else:
+                if 0 not in warmup_data_request_hist:
+                    warmup_data_request_hist[0] = 1
+                else:
+                    warmup_data_request_hist[0] += 1
                 logger.info(f"Warmup, epoch {epoch}, 0 data requests")
 
     if options.warmup_epochs > 0:
@@ -178,11 +233,9 @@ def main():
 
     if options.detailed_epochs > 0:
         ars.clear_stats()
-    else:
-        print(f"Data requests simulated in warmup: {total_warmup_data_requests}, {total_warmup_data_requests / (options.warmup_epochs or 1)} / epoch")
-        ars.collect_stats()
 
     # Run the actual simulation
+    detailed_data_request_hist = {}
     total_detailed_data_requests, leftover_reputation = 0, 0
     epochs_before = options.offset_epochs + options.warmup_epochs
     for epoch in range(epochs_before, epochs_before + options.detailed_epochs):
@@ -190,6 +243,10 @@ def main():
             num_data_requests = generate_block(avg_data_requests, std_data_requests)
             data_requests = [(options.witnesses, options.collateral) * num_data_requests]
 
+            if num_data_requests not in detailed_data_request_hist:
+                detailed_data_request_hist[num_data_requests] = 1
+            else:
+                detailed_data_request_hist[num_data_requests] += 1
             total_detailed_data_requests += num_data_requests
 
             leftover_reputation= simulate_block(
@@ -203,6 +260,10 @@ def main():
             )
         else:
             if epoch in data_requests_per_epoch:
+                if len(data_requests_per_epoch[epoch]) not in detailed_data_request_hist:
+                    detailed_data_request_hist[len(data_requests_per_epoch[epoch])] = 1
+                else:
+                    detailed_data_request_hist[len(data_requests_per_epoch[epoch])] += 1
                 total_detailed_data_requests += len(data_requests_per_epoch[epoch])
 
                 leftover_reputation = simulate_block(
@@ -215,6 +276,10 @@ def main():
                     leftover_reputation,
                 )
             else:
+                if 0 not in detailed_data_request_hist:
+                    detailed_data_request_hist[0] = 1
+                else:
+                    detailed_data_request_hist[0] += 1
                 logger.info(f"Detailed, epoch {epoch}, 0 data requests")
 
     if options.detailed_epochs > 0:
@@ -225,14 +290,22 @@ def main():
         if options.print_ars:
             ars.print_ARS()
 
+    if options.warmup_epochs > 0:
+        f_stats.write(f"Data requests simulated in warmup: {total_warmup_data_requests}\n")
+        for num, counter in sorted(warmup_data_request_hist.items()):
+            f_stats.write(f"Blocks with {num} data requests: {counter} ({counter / options.warmup_epochs * 100:.2f}%)\n")
+        f_stats.write(f"{total_warmup_data_requests / options.warmup_epochs:.2f} data requests / epoch\n\n")
     if options.detailed_epochs > 0:
-        print(f"Data requests simulated in warmup: {total_warmup_data_requests}, {total_warmup_data_requests / (options.warmup_epochs or 1):.2f} / epoch")
-        print(f"Data requests simulated in detailed: {total_detailed_data_requests}, {total_detailed_data_requests / (options.detailed_epochs or 1):.2f} / epoch")
+        f_stats.write(f"Data requests simulated in detailed: {total_detailed_data_requests}\n")
+        for num, counter in sorted(detailed_data_request_hist.items()):
+            f_stats.write(f"Blocks with {num} data requests: {counter} ({counter / options.detailed_epochs * 100:.2f}%)\n")
+        f_stats.write(f"{total_detailed_data_requests / options.detailed_epochs:.2f} data requests / epoch\n\n")
 
-    if options.detailed_epochs > 0:
-        ars.collect_stats()
+    ars.collect_stats(f_stats)
 
-    print(f"The simulation took {time.perf_counter() - start:.2f} seconds")
+    f_stats.write(f"The simulation took {time.perf_counter() - start:.2f} seconds\n")
+
+    f_stats.close()
 
 if __name__ == "__main__":
     main()

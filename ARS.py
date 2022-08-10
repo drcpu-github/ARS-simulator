@@ -1,4 +1,5 @@
 import logging
+import numpy
 import operator
 import random
 
@@ -245,29 +246,33 @@ class ARS:
         for identity in sorted(list(self.identities.values()), key=operator.attrgetter("total_reputation"), reverse=True):
             self.logger.info(f"{identity.name:<44}{identity.total_reputation:>12}{identity.eligible_no_collateral:>16}{identity.solved_data_requests:>16}")
 
-    def collect_stats(self):
+    def collect_stats(self, f_stats):
         solved_data_requests, eligible_no_collateral = [], []
         for identity in self.identities.values():
             solved_data_requests.append(identity.solved_data_requests)
             eligible_no_collateral.append(identity.eligible_no_collateral)
 
-        print(f"Maximum data requests solved by one identity: {max(solved_data_requests)}")
-        print(f"Maximum data requests eligible but not solved: {max(eligible_no_collateral)}")
+        f_stats.write(f"Maximum data requests solved by one identity: {max(solved_data_requests)}\n")
+        f_stats.write(f"Maximum data requests eligible but not solved: {max(eligible_no_collateral)}\n\n")
 
-        print(f"Average data requests solved by one identity: {sum(solved_data_requests) / len(solved_data_requests):.2f}")
-        print(f"Average data requests eligible but not solved: {sum(eligible_no_collateral) / len(eligible_no_collateral):.2f}")
+        percentiles = range(10, 100, 10)
 
         # How many data request solved each identity if he solved at least one
         solved_data_requests_without_zeros = list(filter(lambda x: x != 0, solved_data_requests))
-        print(f"Average data requests solved by one identity (no zero entries): {sum(solved_data_requests_without_zeros) / len(solved_data_requests_without_zeros):.2f}")
+        solved_data_request_percentiles = numpy.percentile(solved_data_requests_without_zeros, percentiles)
+        for percentile, solved_data_request_percentile in zip(percentiles, solved_data_request_percentiles):
+            f_stats.write(f"Data requests solved per identity ({100 - percentile}%): {solved_data_request_percentile:.2f}\n")
+        f_stats.write(f"Average data requests solved per identity: {numpy.average(solved_data_requests_without_zeros):.2f}\n\n")
 
         # Check how many identities where eligible to solve a data request but could not ignoring identities that never solved a data request
-        eligible_no_collateral_filtered, counter = 0, 0
+        eligible_no_collateral_filtered = []
         for solved, eligible in zip(solved_data_requests, eligible_no_collateral):
             if solved > 0 or eligible > 0:
-                eligible_no_collateral_filtered += eligible
-                counter += 1
-        print(f"Average data requests eligible but not solved (no zero entries): {eligible_no_collateral_filtered / counter:.2f}")
+                eligible_no_collateral_filtered.append(eligible)
+        eligible_no_collateral_percentiles = numpy.percentile(eligible_no_collateral_filtered, percentiles)
+        for percentile, eligible_no_collateral_percentile in zip(percentiles, eligible_no_collateral_percentiles):
+            f_stats.write(f"Data requests eligible but not solved per identity ({100 - percentile}%): {eligible_no_collateral_percentile:.2f}\n")
+        f_stats.write(f"Average data requests eligible but not solved per identity: {numpy.average(eligible_no_collateral_filtered):.2f}\n\n")
 
     def clear_stats(self):
         for identity in self.identities.values():
