@@ -49,28 +49,29 @@ def dump_options(options, f_stats):
     f_stats.write("\n===================================================================\n\n")
     f_stats.flush()
 
-def read_data_requests_file(data_requests_file):
+def read_data_requests_files(data_requests_files):
     data_requests = {}
 
-    f = open_file(data_requests_file)
-
-    first_line = True
-    for line in f:
-        # Read and transform CSV data
-        epoch, data_request_hash, witnesses, collateral = line.split(",")
-        epoch, witnesses, collateral = int(epoch), int(witnesses), int(collateral) / 1E9
-
-        # Normalize epoch
-        if first_line:
-            first_epoch = epoch
-            first_line = False
-        epoch -= first_epoch
-
-        # Add to the dictionary
-        if epoch not in data_requests:
-            data_requests[epoch] = []
-        data_requests[epoch].append((witnesses, collateral))
+    f = open_file(data_requests_files.split(",")[0])
+    first_epoch = int(f.readline().split(",")[0])
     f.close()
+
+    for data_requests_file in data_requests_files.split(","):
+        f = open_file(data_requests_file)
+        for line in f:
+            # Read and transform CSV data
+            epoch, data_request_hash, witnesses, collateral = line.split(",")
+            epoch, witnesses, collateral = int(epoch), int(witnesses), int(collateral) / 1E9
+
+            # Normalize epoch
+            epoch -= first_epoch
+            assert epoch >= 0, "Are the supplied data requests files in chronological order?"
+
+            # Add to the dictionary
+            if epoch not in data_requests:
+                data_requests[epoch] = []
+            data_requests[epoch].append((witnesses, collateral))
+        f.close()
 
     return data_requests
 
@@ -174,7 +175,12 @@ def main():
 
     data_requests_per_epoch = {}
     if options.data_requests_file:
-        data_requests_per_epoch = read_data_requests_file(options.data_requests_file)
+        data_requests_per_epoch = read_data_requests_files(options.data_requests_file)
+
+        max_epochs = max(data_requests_per_epoch.keys())
+        logger.info(f"Read data requests from input files for simulating {max_epochs} epochs")
+        if max_epochs < options.offset_epochs + options.warmup_epochs + options.detailed_epochs:
+            logger.warning(f"Too few epochs {max_epochs} read from input files to complete simulation")
 
     # Run a warmup phase in the simulation
     warmup_data_request_hist = {}
