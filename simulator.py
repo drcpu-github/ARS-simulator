@@ -138,7 +138,7 @@ def main():
 
     # Simulator options
     parser.add_option("--log-stdout", type="string", dest="log_stdout", default="info", help="Set logging level to stdout")
-    parser.add_option("--log-file", type="string", dest="log_file", default="debug", help="Set logging level to file")
+    parser.add_option("--log-file", type="string", dest="log_file", default="info", help="Set logging level to file")
     parser.add_option("--print-ars", action="store_true", dest="print_ars", default=False, help="At the end of the simulation, print all identities in the ARS")
 
     options, args = parser.parse_args()
