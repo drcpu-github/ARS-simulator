@@ -28,10 +28,10 @@ def dump_options(options, f_stats):
         f_stats.write(f"zero-reputation-ratio: {options.zero_reputation_ratio}%\n")
 
     if not options.data_requests_file:
-        f_stats.write(f"--avg-data-requests: {avg_data_requests}\n")
-        f_stats.write(f"--std-data-requests: {options.std_data_requests}\n")
-        f_stats.write(f"--witnesses: {options.witnesses}\n")
-        f_stats.write(f"--collateral: {options.collateral}\n")
+        f_stats.write(f"avg-data-requests: {options.avg_data_requests}\n")
+        f_stats.write(f"std-data-requests: {options.std_data_requests}\n")
+        f_stats.write(f"witnesses: {options.witnesses}\n")
+        f_stats.write(f"collateral: {options.collateral}\n")
     else:
         f_stats.write(f"data-requests-file: {options.data_requests_file}\n")
 
@@ -187,8 +187,8 @@ def main():
     total_warmup_data_requests, leftover_reputation = 0, 0
     for epoch in range(options.offset_epochs, options.offset_epochs + options.warmup_epochs):
         if data_requests_per_epoch == {}:
-            num_data_requests = generate_block(avg_data_requests, std_data_requests)
-            data_requests = [(options.witnesses, options.collateral) * num_data_requests]
+            num_data_requests = generate_block(options.avg_data_requests, options.std_data_requests)
+            data_requests = [[options.witnesses, options.collateral]] * num_data_requests
 
             if num_data_requests not in warmup_data_request_hist:
                 warmup_data_request_hist[num_data_requests] = 1
@@ -246,8 +246,8 @@ def main():
     epochs_before = options.offset_epochs + options.warmup_epochs
     for epoch in range(epochs_before, epochs_before + options.detailed_epochs):
         if data_requests_per_epoch == {}:
-            num_data_requests = generate_block(avg_data_requests, std_data_requests)
-            data_requests = [(options.witnesses, options.collateral) * num_data_requests]
+            num_data_requests = generate_block(options.avg_data_requests, options.std_data_requests)
+            data_requests = [[options.witnesses, options.collateral]] * num_data_requests
 
             if num_data_requests not in detailed_data_request_hist:
                 detailed_data_request_hist[num_data_requests] = 1
