@@ -275,8 +275,8 @@ class ARS:
         f_stats.write(f"Average data requests eligible but not solved per identity: {numpy.average(eligible_no_collateral_filtered):.2f}\n\n")
 
         counter = 0
-        top_reputed_data_requests_solved = {10: [], 100: [], 1000: []}
-        top_reputed_eligible_no_collateral = {10: [], 100: [], 1000: []}
+        top_reputed_data_requests_solved = {100: [], 1000: []}
+        top_reputed_eligible_no_collateral = {100: [], 1000: []}
         for identity in sorted(list(self.identities.values()), key=operator.attrgetter("total_reputation"), reverse=True):
             for cutoff in top_reputed_data_requests_solved.keys():
                 if counter < cutoff:
