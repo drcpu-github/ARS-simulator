@@ -274,6 +274,21 @@ class ARS:
             f_stats.write(f"Data requests eligible but not solved per identity ({100 - percentile}%): {eligible_no_collateral_percentile:.2f}\n")
         f_stats.write(f"Average data requests eligible but not solved per identity: {numpy.average(eligible_no_collateral_filtered):.2f}\n\n")
 
+        counter = 0
+        top_reputed_data_requests_solved = {10: [], 100: [], 1000: []}
+        top_reputed_eligible_no_collateral = {10: [], 100: [], 1000: []}
+        for identity in sorted(list(self.identities.values()), key=operator.attrgetter("total_reputation"), reverse=True):
+            for cutoff in top_reputed_data_requests_solved.keys():
+                if counter < cutoff:
+                    top_reputed_data_requests_solved[cutoff].append(identity.solved_data_requests)
+                    top_reputed_eligible_no_collateral[cutoff].append(identity.eligible_no_collateral)
+            counter += 1
+
+        for cutoff in top_reputed_data_requests_solved.keys():
+            f_stats.write(f"Top {cutoff} node average data requests solved: {numpy.average(top_reputed_data_requests_solved[cutoff]):.2f}\n")
+            f_stats.write(f"Top {cutoff} node eligble to solve but no collateral: {numpy.average(top_reputed_eligible_no_collateral[cutoff]):.2f}\n")
+        f_stats.write("\n")
+
     def clear_stats(self):
         for identity in self.identities.values():
             identity.clear_stats()
